@@ -1,0 +1,4 @@
+# Settings for HC Bridge service. This file is sourced by /etc/systemd/system/hcbridged.service
+
+# Options passed to hcbridged
+HCBRIDGED_OPTS=-mqtt-uri tcp://localhost:1883

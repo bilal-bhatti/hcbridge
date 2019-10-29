@@ -1,0 +1,16 @@
+[Unit]
+Description=HC Bridge service
+After=network.target
+StartLimitIntervalSec=10
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+User=hcbridge
+EnvironmentFile=/etc/default/hcbridged
+WorkingDirectory=/home/hcbridge
+ExecStart=/opt/bin/hcbridged $HCBRIDGED_OPTS
+
+[Install]
+WantedBy=multi-user.target
