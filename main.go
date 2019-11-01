@@ -8,6 +8,7 @@ import (
 	"hcbridge/ha"
 	"log"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/brutella/hc"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	mqttClient = "HCBRIDGE-U19HGD8"
+	mqttClient = "HCBRIDGE-U19H23"
 )
 
 func main() {
@@ -24,9 +25,9 @@ func main() {
 	flag.Parse()
 
 	bridge := accessory.NewBridge(accessory.Info{
-		Name:             "HC Bridge",
-		Manufacturer:     "HC Bridge",
-		SerialNumber:     "VF8RAW9DB",
+		Name:             "Go HomeBridge",
+		Manufacturer:     "Go HomeBridge",
+		SerialNumber:     "VF8RAW9DBB",
 		Model:            "HiTech",
 		FirmwareRevision: "OEI-839",
 	})
@@ -72,7 +73,35 @@ func main() {
 		devices = append(devices, device.Accessory)
 	}
 
+	registerSensors := func(client mqtt.Client, msg mqtt.Message) {
+		var dd ha.SensorDevice
+		err := json.NewDecoder(bytes.NewReader(msg.Payload())).Decode(&dd)
+		if err != nil {
+			panic(err)
+		}
+
+		info := accessory.Info{
+			Name:             dd.Name,
+			Manufacturer:     dd.Device.Manufacturer,
+			SerialNumber:     dd.Device.Identifiers,
+			Model:            dd.Device.Model,
+			FirmwareRevision: dd.Device.SWVersion,
+		}
+
+		device := accessory.NewTemperatureSensor(info, 24.5, 20, 55, .1)
+
+		client.Subscribe(dd.StateTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
+			log.Printf("Status update received from MQTT for %s with value %v", info.Name, string(msg.Payload()))
+			if temp, err := strconv.ParseFloat(string(msg.Payload()), 64); err == nil {
+				device.TempSensor.CurrentTemperature.UpdateValue(temp)
+			}
+		})
+
+		devices = append(devices, device.Accessory)
+	}
+
 	client.Subscribe("homeassistant/switch/#", 0, registerSwitches)
+	client.Subscribe("homeassistant/sensor/#", 0, registerSensors)
 
 	// Hack to read MQTT discovered devices
 	// TODO: use mqtt messages to bootstrap devices
