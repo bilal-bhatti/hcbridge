@@ -1,129 +1,40 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"hcbridge/ha"
 	"log"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/brutella/hc"
-	"github.com/brutella/hc/accessory"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/thanhpk/randstr"
 )
 
-const (
-	mqttClient = "HCBRIDGE-U19H23"
-)
+var mqttClient = "HKBR-" + randstr.String(6)
 
 func main() {
 	mqttURI := flag.String("mqtt-uri", "tcp://localhost:1883", "Specify MQTT URI")
 	flag.Parse()
 
-	bridge := accessory.NewBridge(accessory.Info{
-		Name:             "Go HomeBridge",
-		Manufacturer:     "Go HomeBridge",
-		SerialNumber:     "VF8RAW9DBB",
-		Model:            "HiTech",
-		FirmwareRevision: "OEI-839",
-	})
-
 	client := connect(mqttClient, *mqttURI)
 
-	devices := []*accessory.Accessory{}
+	done := make(chan bool, 1)
 
-	registerSwitches := func(client mqtt.Client, msg mqtt.Message) {
-		var dd ha.SwitchDevice
-		err := json.NewDecoder(bytes.NewReader(msg.Payload())).Decode(&dd)
-		if err != nil {
-			panic(err)
-		}
-
-		info := accessory.Info{
-			Name:             dd.Name,
-			Manufacturer:     dd.Device.Manufacturer,
-			SerialNumber:     dd.Device.Identifiers,
-			Model:            dd.Device.Model,
-			FirmwareRevision: dd.Device.SWVersion,
-		}
-
-		device := accessory.NewSwitch(info)
-		device.Switch.On.OnValueRemoteUpdate(func(on bool) {
-			log.Printf("Received HomeKit update from %s, publishing to MQTT", info.Name)
-			if on == true {
-				client.Publish(dd.CommandTopic, 0, false, "ON")
-			} else {
-				client.Publish(dd.CommandTopic, 0, false, "OFF")
-			}
-		})
-
-		client.Subscribe(dd.StateTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-			log.Printf("Status update received from MQTT for %s", info.Name)
-			if string(msg.Payload()) == "ON" {
-				device.Switch.On.SetValue(true)
-			} else {
-				device.Switch.On.SetValue(false)
-			}
-		})
-
-		devices = append(devices, device.Accessory)
-	}
-
-	registerSensors := func(client mqtt.Client, msg mqtt.Message) {
-		var dd ha.SensorDevice
-		err := json.NewDecoder(bytes.NewReader(msg.Payload())).Decode(&dd)
-		if err != nil {
-			panic(err)
-		}
-
-		info := accessory.Info{
-			Name:             dd.Name,
-			Manufacturer:     dd.Device.Manufacturer,
-			SerialNumber:     dd.Device.Identifiers,
-			Model:            dd.Device.Model,
-			FirmwareRevision: dd.Device.SWVersion,
-		}
-
-		device := accessory.NewTemperatureSensor(info, 24.5, 20, 55, .1)
-
-		client.Subscribe(dd.StateTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-			log.Printf("Status update received from MQTT for %s with value %v", info.Name, string(msg.Payload()))
-			if temp, err := strconv.ParseFloat(string(msg.Payload()), 64); err == nil {
-				device.TempSensor.CurrentTemperature.UpdateValue(temp)
-			}
-		})
-
-		devices = append(devices, device.Accessory)
-	}
-
-	client.Subscribe("homeassistant/switch/#", 0, registerSwitches)
-	client.Subscribe("homeassistant/sensor/#", 0, registerSensors)
-
-	// Hack to read MQTT discovered devices
-	// TODO: use mqtt messages to bootstrap devices
-	time.Sleep(5 * time.Second)
-	log.Printf("Registering %d devices", len(devices))
-
-	t, err := hc.NewIPTransport(hc.Config{Pin: "35018183"}, bridge.Accessory, devices...)
-
-	bridge.OnIdentify(func() {
-		log.Println("Identity confirmed " + bridge.Info.Identify.Description)
-	})
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	vb := NewVBridge()
+	client.Subscribe("homeassistant/switch/#", 0, vb.OnSwitch)
+	client.Subscribe("homeassistant/sensor/#", 0, vb.OnSensor)
 
 	hc.OnTermination(func() {
 		client.Disconnect(2)
-		<-t.Stop()
+		vb.Stop()
+		close(done)
 	})
 
-	t.Start()
+	// block until done
+	<-done
+	log.Println("Stopped virtual bridge server")
 }
 
 func connect(clientID string, mqttURI string) mqtt.Client {
