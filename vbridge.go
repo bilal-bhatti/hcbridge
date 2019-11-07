@@ -20,10 +20,10 @@ const (
 
 // VBridge ...
 type VBridge struct {
-	bridge   *accessory.Bridge
-	devices  []*accessory.Accessory
-	stopper  func()
-	starting atomic.Value
+	bridge      *accessory.Bridge
+	accessories []*accessory.Accessory
+	stopper     func()
+	starting    atomic.Value
 }
 
 // NewVBridge ...
@@ -44,6 +44,8 @@ func NewVBridge() *VBridge {
 }
 
 // TODO: Add virtual bridge service to report it's status
+
+// TODO: Add support of removal of accessories
 
 // OnSwitch ...
 func (b *VBridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
@@ -82,7 +84,7 @@ func (b *VBridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
 		}
 	})
 
-	b.devices = append(b.devices, device.Accessory)
+	b.accessories = append(b.accessories, device.Accessory)
 	b.start()
 }
 
@@ -115,7 +117,7 @@ func (b *VBridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
 		}
 	})
 
-	b.devices = append(b.devices, device.Accessory)
+	b.accessories = append(b.accessories, device.Accessory)
 	b.start()
 }
 
@@ -143,7 +145,7 @@ func (b *VBridge) start() {
 		log.Println("Starting in 5 seconds ....")
 		time.Sleep(5 * time.Second)
 
-		t, err := hc.NewIPTransport(hc.Config{Pin: pinCode}, b.bridge.Accessory, b.devices...)
+		t, err := hc.NewIPTransport(hc.Config{Pin: pinCode}, b.bridge.Accessory, b.accessories...)
 
 		b.bridge.OnIdentify(func() {
 			log.Println("Identity confirmed " + b.bridge.Info.Identify.Description)
@@ -158,7 +160,7 @@ func (b *VBridge) start() {
 			<-t.Stop()
 		}
 
-		log.Printf("Registering %d devices", len(b.devices))
+		log.Printf("Registering %d devices", len(b.accessories))
 		t.Start()
 		b.starting.Store(false)
 	}()
