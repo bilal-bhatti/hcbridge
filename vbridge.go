@@ -143,8 +143,6 @@ func (b *VBridge) start() {
 		log.Println("Starting in 5 seconds ....")
 		time.Sleep(5 * time.Second)
 
-		b.starting.Store(false)
-
 		t, err := hc.NewIPTransport(hc.Config{Pin: pinCode}, b.bridge.Accessory, b.devices...)
 
 		b.bridge.OnIdentify(func() {
@@ -162,5 +160,6 @@ func (b *VBridge) start() {
 
 		log.Printf("Registering %d devices", len(b.devices))
 		t.Start()
+		b.starting.Store(false)
 	}()
 }

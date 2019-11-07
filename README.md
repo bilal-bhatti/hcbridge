@@ -4,6 +4,7 @@ A simple HomeKit bridge between ESPHome enabled devices that broadcast HomeAssis
 
 Supports:
  - Switches (on/off)
+ - Temperature Sensors (basic)
  
 Code is fairly basic. Mostly a test to see if it would work but seems fairly stable and so will add more accessories over time.
 
