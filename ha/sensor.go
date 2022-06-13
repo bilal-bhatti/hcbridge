@@ -1,7 +1,7 @@
 package ha
 
-// SensorDevice represents home assistant discovery information
-type SensorDevice struct {
+// SensorConfig represents home assistant discovery information
+type SensorConfig struct {
 	Name              string `json:"name"`
 	StateTopic        string `json:"state_topic"`
 	AvailabilityTopic string `json:"availability_topic"`

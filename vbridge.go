@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/brutella/hc"
 	"github.com/brutella/hc/accessory"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -22,6 +21,8 @@ const (
 type VBridge struct {
 	bridge      *accessory.Bridge
 	accessories []*accessory.Accessory
+	devices     map[string]VDevice
+	database    *Database
 	stopper     func()
 	starting    atomic.Value
 }
@@ -31,13 +32,14 @@ func NewVBridge() *VBridge {
 	bridge := accessory.NewBridge(accessory.Info{
 		Name:             "HiTechBridge",
 		Manufacturer:     "HiTechBridge",
-		SerialNumber:     "VF8R7GHO",
+		SerialNumber:     "VF8R7GHOY",
 		Model:            "HiTech",
 		FirmwareRevision: "OEI-839",
 	})
 
 	vb := &VBridge{
-		bridge: bridge,
+		bridge:   bridge,
+		database: &Database{},
 	}
 	vb.starting.Store(false)
 	return vb
@@ -49,7 +51,7 @@ func NewVBridge() *VBridge {
 
 // OnSwitch ...
 func (b *VBridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
-	var dd ha.SwitchDevice
+	var dd ha.SwitchConfig
 	err := json.NewDecoder(bytes.NewReader(msg.Payload())).Decode(&dd)
 	if err != nil {
 		panic(err)
@@ -66,6 +68,8 @@ func (b *VBridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
 	}
 
 	device := accessory.NewSwitch(info)
+	// ol := accessory.NewOutlet(info)
+	// log.Println("ol", ol)
 	device.Switch.On.OnValueRemoteUpdate(func(on bool) {
 		log.Printf("Received HomeKit update from %s, publishing to MQTT", info.Name)
 		if on == true {
@@ -90,26 +94,30 @@ func (b *VBridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
 
 // OnSensor ...
 func (b *VBridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
-	var dd ha.SensorDevice
+	var dd ha.SensorConfig
 	err := json.NewDecoder(bytes.NewReader(msg.Payload())).Decode(&dd)
 	if err != nil {
 		panic(err)
 	}
 
-	log.Printf("Adding sensor %s", dd.Name)
+	// log.Printf("Adding sensor %s", dd.Name)
 
-	info := accessory.Info{
-		Name:             dd.Name,
-		Manufacturer:     dd.Device.Manufacturer,
-		SerialNumber:     dd.Device.Identifiers,
-		Model:            dd.Device.Model,
-		FirmwareRevision: dd.Device.SWVersion,
-	}
+	// info := accessory.Info{
+	// 	Name:             dd.Name,
+	// 	Manufacturer:     dd.Device.Manufacturer,
+	// 	SerialNumber:     dd.Device.Identifiers,
+	// 	Model:            dd.Device.Model,
+	// 	FirmwareRevision: dd.Device.SWVersion,
+	// }
 
-	device := accessory.NewTemperatureSensor(info, 25, 10, 65, .1)
+	// device := accessory.NewTemperatureSensor(info, 25, 10, 65, .1)
+	device := b.database.PutSensorDevice(dd)
+	// humidity := service.NewHumiditySensor()
+	// humidity.CurrentRelativeHumidity.UpdateValue(66.4)
+	// device.AddService(humidity.Service)
 
 	client.Subscribe(dd.StateTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		log.Printf("Status update received from MQTT for %s with value %v", info.Name, string(msg.Payload()))
+		log.Printf("Status update received from MQTT for %s with value %v", dd.Name, string(msg.Payload()))
 		if temp, err := strconv.ParseFloat(string(msg.Payload()), 64); err == nil {
 			device.TempSensor.CurrentTemperature.UpdateValue(temp)
 		} else {
@@ -142,26 +150,26 @@ func (b *VBridge) start() {
 		b.Stop()
 
 		// TODO: debounce better
-		log.Println("Starting in 5 seconds ....")
+		log.Println("Starting in 5 seconds with pin:", pinCode)
 		time.Sleep(5 * time.Second)
 
-		t, err := hc.NewIPTransport(hc.Config{Pin: pinCode}, b.bridge.Accessory, b.accessories...)
+		// t, err := hc.NewIPTransport(hc.Config{Pin: pinCode}, b.bridge.Accessory, b.accessories...)
 
 		b.bridge.OnIdentify(func() {
 			log.Println("Identity confirmed " + b.bridge.Info.Identify.Description)
 		})
 
-		if err != nil {
-			log.Fatal(err)
-		}
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 
-		b.stopper = func() {
-			log.Println("Stopping underlying bridge")
-			<-t.Stop()
-		}
+		// b.stopper = func() {
+		// 	log.Println("Stopping underlying bridge")
+		// 	<-t.Stop()
+		// }
 
 		log.Printf("Registering %d devices", len(b.accessories))
-		t.Start()
+		// t.Start()
 		b.starting.Store(false)
 	}()
 }
