@@ -1,4 +1,4 @@
-# HC Home Bridge
+# MQTT/HA Discovery Bridge
 
 A simple HomeKit bridge between ESPHome enabled devices that broadcast HomeAssistant discovery messages and a HomeKit Hub like Apple TV etc.
 

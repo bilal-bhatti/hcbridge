@@ -1,4 +1,4 @@
-package hcbridge
+package bridge
 
 // Device ...
 type Device struct {

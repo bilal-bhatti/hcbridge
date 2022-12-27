@@ -1,4 +1,4 @@
-package hcbridge
+package bridge
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ type Bridge struct {
 }
 
 // NewVBridge ...
-func NewVBridge(pinCode string) *Bridge {
+func NewBridge(pinCode string) *Bridge {
 	bridge := accessory.NewBridge(accessory.Info{
 		Name:             "MQTTBridge",
 		Manufacturer:     "MQTT Bridge",
@@ -146,7 +146,6 @@ func (b *Bridge) start() {
 	log.Println("Starting transport")
 	b.Stop()
 
-	// TODO: debounce better
 	log.Println("Starting in 5 seconds with pin", b.PinCode)
 	time.Sleep(5 * time.Second)
 

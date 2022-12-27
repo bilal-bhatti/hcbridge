@@ -1,4 +1,4 @@
-package hcbridge
+package bridge
 
 // SwitchConfig represents home assistant discovery information
 type SwitchConfig struct {

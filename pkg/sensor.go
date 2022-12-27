@@ -1,4 +1,4 @@
-package hcbridge
+package bridge
 
 // SensorConfig represents home assistant discovery information
 type SensorConfig struct {
