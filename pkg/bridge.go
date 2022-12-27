@@ -121,9 +121,6 @@ func (b *Bridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
 	}
 
 	device := accessory.NewTemperatureSensor(info, 25, 10, 65, .1)
-	// humidity := device.NewHumiditySensor()
-	// humidity.CurrentRelativeHumidity.UpdateValue(66.4)
-	// device.AddService(humidity.Service)
 
 	client.Subscribe(dd.StateTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
 		log.Printf("Status update received from MQTT for %s with value %v", dd.Name, string(msg.Payload()))
