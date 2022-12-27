@@ -1,6 +1,6 @@
 # MQTT/HA Discovery Bridge
 
-A simple HomeKit bridge between ESPHome enabled devices that broadcast HomeAssistant discovery messages and a HomeKit Hub like Apple TV etc.
+A simple HomeKit bridge between ESPHome enabled devices that broadcast Home Assistant discovery messages and a HomeKit Hub like Apple TV etc.
 
 Supports:
  - Switches (on/off)
