@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	hcbridge "hcbridge/pkg"
 	"log"
 	"net/url"
 	"time"
@@ -12,17 +13,22 @@ import (
 	"github.com/thanhpk/randstr"
 )
 
-var mqttClient = "HKBR-" + randstr.String(6)
+const (
+	pinCode = "18058084"
+)
+
+var mqttClient = "MQBR-" + randstr.String(6)
 
 func main() {
 	mqttURI := flag.String("mqtt-uri", "tcp://localhost:1883", "Specify MQTT URI")
+	pinCode := flag.String("pin-code", pinCode, "Specify PIN Code, default is "+pinCode)
 	flag.Parse()
 
 	client := connect(mqttClient, *mqttURI)
 
 	done := make(chan bool, 1)
 
-	vb := NewVBridge()
+	vb := hcbridge.NewVBridge(*pinCode)
 	client.Subscribe("homeassistant/switch/#", 0, vb.OnSwitch)
 	client.Subscribe("homeassistant/sensor/#", 0, vb.OnSensor)
 

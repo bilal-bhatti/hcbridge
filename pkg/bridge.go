@@ -1,43 +1,52 @@
-package main
+package hcbridge
 
 import (
 	"bytes"
 	"encoding/json"
-	"hcbridge/ha"
 	"log"
 	"strconv"
 	"sync/atomic"
 	"time"
 
+	"github.com/bep/debounce"
 	"github.com/brutella/hc"
 	"github.com/brutella/hc/accessory"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-const (
-	pinCode = "15018183"
-)
+// const (
+// 	pinCode = "18058084"
+// )
 
-// VBridge ...
-type VBridge struct {
-	bridge   *accessory.Bridge
-	devices  []*accessory.Accessory
-	stopper  func()
-	starting atomic.Value
+// Bridge ...
+type Bridge struct {
+	PinCode   string
+	bridge    *accessory.Bridge
+	stopper   func()
+	starting  atomic.Value
+	deviceMap map[string]*accessory.Accessory
+	debounce  func(f func())
 }
 
 // NewVBridge ...
-func NewVBridge() *VBridge {
+func NewVBridge(pinCode string) *Bridge {
 	bridge := accessory.NewBridge(accessory.Info{
-		Name:             "HiTechBridge",
-		Manufacturer:     "HiTechBridge",
-		SerialNumber:     "VF8R7GHO",
-		Model:            "HiTech",
-		FirmwareRevision: "OEI-839",
+		Name:             "ESPHomeBridge",
+		Manufacturer:     "ESP Home Bridge",
+		SerialNumber:     "AAAXXXXXX",
+		Model:            "ESP_Home_Bridge",
+		FirmwareRevision: "OEI-AAA",
 	})
 
-	vb := &VBridge{
-		bridge: bridge,
+	bridge.OnIdentify(func() {
+		log.Println("Identity confirmed " + bridge.Info.Identify.Description)
+	})
+
+	vb := &Bridge{
+		PinCode:   pinCode,
+		bridge:    bridge,
+		debounce:  debounce.New(1000 * time.Millisecond),
+		deviceMap: make(map[string]*accessory.Accessory),
 	}
 	vb.starting.Store(false)
 	return vb
@@ -46,11 +55,15 @@ func NewVBridge() *VBridge {
 // TODO: Add virtual bridge service to report it's status
 
 // OnSwitch ...
-func (b *VBridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
-	var dd ha.SwitchDevice
+func (b *Bridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
+	var dd SwitchDevice
 	err := json.NewDecoder(bytes.NewReader(msg.Payload())).Decode(&dd)
 	if err != nil {
 		panic(err)
+	}
+
+	if _, ok := b.deviceMap[dd.UniqueID]; ok {
+		return
 	}
 
 	log.Printf("Adding switch %s", dd.Name)
@@ -66,7 +79,7 @@ func (b *VBridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
 	device := accessory.NewSwitch(info)
 	device.Switch.On.OnValueRemoteUpdate(func(on bool) {
 		log.Printf("Received HomeKit update from %s, publishing to MQTT", info.Name)
-		if on == true {
+		if on {
 			client.Publish(dd.CommandTopic, 0, false, "ON")
 		} else {
 			client.Publish(dd.CommandTopic, 0, false, "OFF")
@@ -82,16 +95,25 @@ func (b *VBridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
 		}
 	})
 
-	b.devices = append(b.devices, device.Accessory)
-	b.start()
+	b.deviceMap[dd.UniqueID] = device.Accessory
+	b.debounce(b.start)
+	// b.start()
 }
 
 // OnSensor ...
-func (b *VBridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
-	var dd ha.SensorDevice
+func (b *Bridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
+	var dd SensorDevice
 	err := json.NewDecoder(bytes.NewReader(msg.Payload())).Decode(&dd)
 	if err != nil {
 		panic(err)
+	}
+
+	if dd.UniqueID == "" {
+		log.Println("Missing unique id from device", dd.Name)
+		return
+	}
+	if _, ok := b.deviceMap[dd.UniqueID]; ok {
+		return
 	}
 
 	log.Printf("Adding sensor %s", dd.Name)
@@ -115,51 +137,41 @@ func (b *VBridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
 		}
 	})
 
-	b.devices = append(b.devices, device.Accessory)
-	b.start()
+	b.deviceMap[dd.UniqueID] = device.Accessory
+	b.debounce(b.start)
+	// b.start()
 }
 
 // Stop ...
-func (b *VBridge) Stop() {
+func (b *Bridge) Stop() {
 	if b.stopper != nil {
 		b.stopper()
 	}
 }
 
-func (b *VBridge) start() {
-	if b.starting.Load() == true {
-		// already in process of starting
-		return
+func (b *Bridge) start() {
+	log.Println("Starting transport")
+	b.Stop()
+
+	// TODO: debounce better
+	log.Println("Starting in 5 seconds with pin", b.PinCode)
+	time.Sleep(5 * time.Second)
+
+	var devices []*accessory.Accessory
+	for _, v := range b.deviceMap {
+		devices = append(devices, v)
 	}
 
-	b.starting.Store(true)
+	t, err := hc.NewIPTransport(hc.Config{Pin: b.PinCode}, b.bridge.Accessory, devices...)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// actually start the bridge
-	go func() {
-		// stop if running
-		b.Stop()
+	b.stopper = func() {
+		log.Println("Stopping underlying bridge")
+		<-t.Stop()
+	}
 
-		// TODO: debounce better
-		log.Println("Starting in 5 seconds ....")
-		time.Sleep(5 * time.Second)
-
-		t, err := hc.NewIPTransport(hc.Config{Pin: pinCode}, b.bridge.Accessory, b.devices...)
-
-		b.bridge.OnIdentify(func() {
-			log.Println("Identity confirmed " + b.bridge.Info.Identify.Description)
-		})
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		b.stopper = func() {
-			log.Println("Stopping underlying bridge")
-			<-t.Stop()
-		}
-
-		log.Printf("Registering %d devices", len(b.devices))
-		t.Start()
-		b.starting.Store(false)
-	}()
+	log.Printf("Registering %d devices", len(devices))
+	t.Start()
 }
