@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	pinCode = "18058084"
+	pinCode = "17432034"
 )
 
 var mqttClient = "MQBR-" + randstr.String(6)
