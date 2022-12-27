@@ -14,10 +14,6 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-// const (
-// 	pinCode = "18058084"
-// )
-
 // Bridge ...
 type Bridge struct {
 	PinCode   string
@@ -31,10 +27,10 @@ type Bridge struct {
 // NewVBridge ...
 func NewVBridge(pinCode string) *Bridge {
 	bridge := accessory.NewBridge(accessory.Info{
-		Name:             "ESPHomeBridge",
-		Manufacturer:     "ESP Home Bridge",
+		Name:             "MQTTBridge",
+		Manufacturer:     "MQTT Bridge",
 		SerialNumber:     "AAAXXXXXX",
-		Model:            "ESP_Home_Bridge",
+		Model:            "MQTT_Bridge",
 		FirmwareRevision: "OEI-AAA",
 	})
 
@@ -51,8 +47,6 @@ func NewVBridge(pinCode string) *Bridge {
 	vb.starting.Store(false)
 	return vb
 }
-
-// TODO: Add virtual bridge service to report it's status
 
 // OnSwitch ...
 func (b *Bridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
@@ -97,7 +91,6 @@ func (b *Bridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
 
 	b.deviceMap[dd.UniqueID] = device.Accessory
 	b.debounce(b.start)
-	// b.start()
 }
 
 // OnSensor ...
@@ -139,7 +132,6 @@ func (b *Bridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
 
 	b.deviceMap[dd.UniqueID] = device.Accessory
 	b.debounce(b.start)
-	// b.start()
 }
 
 // Stop ...
