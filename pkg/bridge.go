@@ -50,7 +50,7 @@ func NewVBridge(pinCode string) *Bridge {
 
 // OnSwitch ...
 func (b *Bridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
-	var dd SwitchDevice
+	var dd SwitchConfig
 	err := json.NewDecoder(bytes.NewReader(msg.Payload())).Decode(&dd)
 	if err != nil {
 		panic(err)
@@ -95,7 +95,8 @@ func (b *Bridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
 
 // OnSensor ...
 func (b *Bridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
-	var dd SensorDevice
+	var dd SensorConfig
+
 	err := json.NewDecoder(bytes.NewReader(msg.Payload())).Decode(&dd)
 	if err != nil {
 		panic(err)
@@ -120,9 +121,12 @@ func (b *Bridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
 	}
 
 	device := accessory.NewTemperatureSensor(info, 25, 10, 65, .1)
+	// humidity := device.NewHumiditySensor()
+	// humidity.CurrentRelativeHumidity.UpdateValue(66.4)
+	// device.AddService(humidity.Service)
 
 	client.Subscribe(dd.StateTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		log.Printf("Status update received from MQTT for %s with value %v", info.Name, string(msg.Payload()))
+		log.Printf("Status update received from MQTT for %s with value %v", dd.Name, string(msg.Payload()))
 		if temp, err := strconv.ParseFloat(string(msg.Payload()), 64); err == nil {
 			device.TempSensor.CurrentTemperature.UpdateValue(temp)
 		} else {

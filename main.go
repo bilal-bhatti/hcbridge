@@ -28,7 +28,7 @@ func main() {
 
 	done := make(chan bool, 1)
 
-	vb := hcbridge.NewVBridge(*pinCode)
+	vb := hcbridge.NewBridge(*pinCode)
 	client.Subscribe("homeassistant/switch/#", 0, vb.OnSwitch)
 	client.Subscribe("homeassistant/sensor/#", 0, vb.OnSensor)
 

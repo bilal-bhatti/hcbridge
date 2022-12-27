@@ -4,12 +4,12 @@ A simple HomeKit bridge between ESPHome enabled devices that broadcast HomeAssis
 
 Supports:
  - Switches (on/off)
- - Temperature Sensors (basic)
+ - Sensors (basic)
  
 Code is fairly basic. Mostly a test to see if it would work but seems fairly stable and so will add more accessories over time.
 
 ## Build
-`go build -o hcbridged`.
+`go build -o hcbridged`
 
 ## Build for Linux
 `env GOOS=linux GOARCH=amd64 go build -o hcbridged`

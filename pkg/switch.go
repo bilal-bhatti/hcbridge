@@ -1,7 +1,7 @@
 package hcbridge
 
-// SwitchDevice represents home assistant discovery information
-type SwitchDevice struct {
+// SwitchConfig represents home assistant discovery information
+type SwitchConfig struct {
 	Name              string `json:"name"`
 	StateTopic        string `json:"state_topic"`
 	CommandTopic      string `json:"command_topic"`
