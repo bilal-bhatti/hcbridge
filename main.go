@@ -13,11 +13,8 @@ import (
 	"github.com/thanhpk/randstr"
 )
 
-const (
-	pinCode = "17432034"
-)
-
 var mqttClient = "MQBR-" + randstr.String(6)
+var pinCode = "17432034"
 
 func main() {
 	mqttURI := flag.String("mqtt-uri", "tcp://localhost:1883", "Specify MQTT URI")
