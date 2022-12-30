@@ -107,6 +107,7 @@ func (b *Bridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
 		return
 	}
 	if _, ok := b.deviceMap[dd.UniqueID]; ok {
+		log.Println("Ignore device", dd.UniqueID)
 		return
 	}
 
