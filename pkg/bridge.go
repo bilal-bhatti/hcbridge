@@ -49,9 +49,15 @@ func NewBridge(pinCode string) *Bridge {
 // OnSwitch ...
 func (b *Bridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
 	var dd SwitchConfig
+
 	err := json.NewDecoder(bytes.NewReader(msg.Payload())).Decode(&dd)
 	if err != nil {
 		panic(err)
+	}
+
+	if dd.UniqueID == "" {
+		log.Println("Missing unique id from device", dd.Name)
+		return
 	}
 
 	if _, ok := b.deviceMap[dd.UniqueID]; ok {
@@ -105,6 +111,7 @@ func (b *Bridge) OnSensor(client mqtt.Client, msg mqtt.Message) {
 		log.Println("Missing unique id from device", dd.Name)
 		return
 	}
+
 	if _, ok := b.deviceMap[dd.UniqueID]; ok {
 		log.Println("Ignore device", dd.UniqueID)
 		return
