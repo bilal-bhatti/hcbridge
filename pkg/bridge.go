@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"log"
+	"sort"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -16,7 +17,7 @@ import (
 
 // Bridge ...
 type Bridge struct {
-	PinCode   string
+	pinCode   string
 	bridge    *accessory.Bridge
 	stopper   func()
 	starting  atomic.Value
@@ -39,7 +40,7 @@ func NewBridge(pinCode string) *Bridge {
 	})
 
 	vb := &Bridge{
-		PinCode:   pinCode,
+		pinCode:   pinCode,
 		bridge:    bridge,
 		debounce:  debounce.New(1000 * time.Millisecond),
 		deviceMap: make(map[string]*accessory.Accessory),
@@ -147,15 +148,21 @@ func (b *Bridge) start() {
 	log.Println("Starting transport")
 	b.Stop()
 
-	log.Println("Starting in 5 seconds with pin", b.PinCode)
+	log.Println("Starting in 5 seconds with pin", b.pinCode)
 	time.Sleep(5 * time.Second)
 
-	var devices []*accessory.Accessory
-	for _, v := range b.deviceMap {
-		devices = append(devices, v)
+	device_ids := make([]string, 0, len(b.deviceMap))
+	for k := range b.deviceMap {
+		device_ids = append(device_ids, k)
+	}
+	sort.Strings(device_ids) // to provide HomeKit an ordered/consistent list of accessories
+
+	devices := make([]*accessory.Accessory, 0, len(b.deviceMap))
+	for _, id := range device_ids {
+		devices = append(devices, b.deviceMap[id])
 	}
 
-	t, err := hc.NewIPTransport(hc.Config{Pin: b.PinCode}, b.bridge.Accessory, devices...)
+	t, err := hc.NewIPTransport(hc.Config{Pin: b.pinCode}, b.bridge.Accessory, devices...)
 	if err != nil {
 		log.Fatal(err)
 	}
