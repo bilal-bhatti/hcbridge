@@ -6,7 +6,6 @@ import (
 	"log"
 	"sort"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/bep/debounce"
@@ -20,7 +19,6 @@ type Bridge struct {
 	pinCode   string
 	bridge    *accessory.Bridge
 	stopper   func()
-	starting  atomic.Value
 	deviceMap map[string]*accessory.Accessory
 	debounce  func(f func())
 }
@@ -45,7 +43,6 @@ func NewBridge(pinCode string) *Bridge {
 		debounce:  debounce.New(1000 * time.Millisecond),
 		deviceMap: make(map[string]*accessory.Accessory),
 	}
-	vb.starting.Store(false)
 	return vb
 }
 
@@ -58,6 +55,7 @@ func (b *Bridge) OnSwitch(client mqtt.Client, msg mqtt.Message) {
 	}
 
 	if _, ok := b.deviceMap[dd.UniqueID]; ok {
+		log.Println("Ignore device", dd.UniqueID)
 		return
 	}
 
